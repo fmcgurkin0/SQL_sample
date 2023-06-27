@@ -1,0 +1,166 @@
+---
+title: "Sample Queries"
+output: html_document
+
+This code creates a database connection named con with two tables, murders and polls2016.
+```{r}
+library(RSQLite)
+library(dslabs)
+con <- dbConnect(RSQLite::SQLite(), "")
+data(murders)
+data(polls_us_election_2016)
+dbWriteTable(con, "murders", murders)
+dbWriteTable(con, "polls2016", polls_us_election_2016)
+```
+
+Display the tables to refresh your memory on the contents of each.
+```{r}
+dbReadTable(con, "murders")
+dbReadTable(con, "polls2016")
+```
+
+
+1. Refer to the polls2016 table. Compute the average adjpoll_johnson for each state. Do not include the national polls (i.e. state = "U.S."). Remove values with NA for adjpoll_johnson. (Some of the values of state specify congressional districts. For example, there is "Maine" and "Maine - CD1", for "congressional district 1". Just regard these as different states.) What is the smallest average value for adjpoll_johnson? 
+```{r}
+query1 <- "SELECT state, AVG(adjpoll_johnson) as avg_johnson 
+          FROM polls2016 
+          WHERE adjpoll_johnson IS NOT NULL AND state != 'U.S.' 
+          GROUP BY state
+          ORDER BY avg_johnson"
+dbGetQuery(con, query1)
+```
+Answer: 1.510193 (Mississippi)
+
+
+2. Refer to the previous item. Adjust the previous query so that it limits the results to states with average adjpoll_johnson values less than 2.5. Order your results by average value, descending. (Again, limit the query to state polls where adjpoll_johnson is not NA.)
+```{r}
+query2 <- "SELECT state, AVG(adjpoll_johnson) as avg_johnson 
+          FROM polls2016 
+          WHERE adjpoll_johnson IS NOT NULL AND state != 'U.S.' 
+          GROUP BY state
+          HAVING avg_johnson < 2.5
+          ORDER BY avg_johnson DESC"
+dbGetQuery(con, query2)
+```
+
+
+3. Refer to the polls2016 table. How many pollsters have "news" (not case sensitive) somewhere in their name? (Don't count the same pollster more than once)
+```{r}
+query3 <- "SELECT pollster 
+          FROM polls2016 
+          WHERE pollster LIKE '%news%'
+          GROUP BY pollster"
+dbGetQuery(con, query3)
+```
+Answer: 4
+
+
+4. Refer to the polls2016 table. How many polls of each grade (i.e. how many A, A-, etc) are in the table? Write a query returning each grade and how many polls have that grade. Put the results in order by count, most to least.  Exclude polls with "NA" for grade.
+```{r}
+query4 <- "SELECT grade, COUNT(grade) as total_grade 
+          FROM polls2016 
+          WHERE grade IS NOT NULL
+          GROUP BY grade"
+dbGetQuery(con, query4)
+```
+
+
+5. Refer to the previous item. Adjust the previous query so that it returns the grade and count of only grades with count greater than 300. Put the results in order by count, most to least.  
+```{r}
+query5 <- "SELECT grade, COUNT(grade) as total_grade 
+          FROM polls2016 
+          WHERE grade IS NOT NULL
+          GROUP BY grade 
+          HAVING total_grade > 300
+          ORDER BY total_grade DESC"
+dbGetQuery(con, query5)
+```
+ 
+
+
+6. Refer to the murders table. Write a query returning the states (including D.C) that have values of "total" that are greater than the average value of "total". Order your results by total, greatest to least.
+```{r}
+query6 <- "SELECT state, total 
+          FROM murders 
+          WHERE total > (SELECT AVG(total) as avg_total 
+                        FROM murders)
+          ORDER BY total DESC"
+dbGetQuery(con, query6)
+```
+
+
+7. Refer to the murders table. Calculate the murder rate per 100,000, i.e. (100000.0*total/population). What is the highest value? Round your answer to two decimals. 
+```{r}
+query7 <- "SELECT state, round((100000.0*total/population),2) as murder_rate
+          FROM murders
+          GROUP BY state
+          ORDER BY murder_rate DESC"
+dbGetQuery(con, query7)
+```
+Answer: D.C. had the highest with a 16.45 murder rate per 100,000
+
+
+8. Refer to the murders table. Write a query returning the average murder rate per 100,000 by region. Order the results from greatest least.
+```{r}
+query8 <- "SELECT region, round(AVG((100000.0*total/population)),2) as murder_rate
+          FROM murders
+          GROUP BY region
+          ORDER BY murder_rate DESC"
+dbGetQuery(con, query8)
+```
+
+9. Create a categorical variable for the murders table, such that it takes value "Small" for states with population less than or equal to 2,000,000, "Medium" for states greater than 2,000,000 but less than or equal to 7,000,000, and "Large" for greater than 7,000,000.
+```{r}
+query9 <- "SELECT state, population, 
+           CASE WHEN population <= 2000000 THEN 'SMALL' 
+                WHEN population > 2000000 AND population <= 7000000 THEN 'MEDIUM' 
+                ELSE 'LARGE'
+           END AS population_class
+           FROM murders"
+dbGetQuery(con, query9)
+```
+
+```{r}
+dbDisconnect(con) 
+```
+
+
+###################################
+###################################
+
+```{r}
+library(RSQLite)
+library(nycflights13)
+con <- dbConnect(RSQLite::SQLite(), "")
+dbWriteTable(con, "flights", flights)
+dbWriteTable(con,"airports", airports)
+```
+
+
+10. Create a query that returns year, month, day, carrier, and origin from the flights table and the name of the airport from the airports table. You may wish to refer to the relationships between the tables here: https://r4ds.had.co.nz/relational-data.html
+```{r}
+query10 = "SELECT flights.year, flights.month, flights.day, flights.carrier, flights.origin, airports.name 
+           FROM flights 
+           INNER JOIN airports ON flights.origin = airports.faa"
+dbGetQuery(con, query10)
+```
+
+
+11. Refer to the airports table. How many airports have names consisting of four or more words? For example, "Durango La Plata Co" and "De Kalb Taylor Municipal Airport" consist of four and five words, respectively, so they fit the criterion. However, "Jekyll Island Airport" does not, as it consists of three words. Also, a single letter or symbol by itself counts as a word, e.g. "Lee C Fine Memorial Airport" is five words.
+```{r}
+query11 = "SELECT name
+           FROM airports 
+           WHERE name LIKE '% % % %'"
+dbGetQuery(con, query11)
+```
+321 airports consist of four or more words. 
+
+
+
+
+
+
+
+
+
+
